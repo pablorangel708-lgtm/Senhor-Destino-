@@ -46,16 +46,10 @@ local CONFIG = {
 
 	Cooldowns = { Teleport = 2.5, Time = 1.5, Portal = 6, Supreme = 25, Telepathy = 1.5 },
 
-	FlySpeed = 60,
-	VerticalSpeed = 45,
-	FlyFollowsCameraPitch = true,
-
 	MaxTeleportDistance = 600,
 	PortalLifetime = 45,
 	SupremeMaxRange = 160,
 	SupremeAheadDistance = 60,
-
-	ShowHelmet = true, -- elmo visual procedural (sem assets)
 }
 
 local GOLD = Color3.fromRGB(255, 200, 60)
@@ -697,59 +691,8 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- ELMO DE NABU (visual procedural)
+-- RESTAURAÇÃO DO PERSONAGEM
 --------------------------------------------------------------------------------
-local function buildHelmet(char)
-	if not CONFIG.ShowHelmet then
-		return
-	end
-	local head = char:FindFirstChild("Head")
-	if not head then
-		return
-	end
-	local d = math.max(head.Size.Y, head.Size.Z) * 1.4
-	local r = d / 2
-
-	local function addPart(props, offset)
-		props.CanCollide = false
-		props.CanQuery = false
-		props.CanTouch = false
-		props.Massless = true
-		props.Anchored = false
-		props.CFrame = head.CFrame * offset
-		local p = new("Part", props, char)
-		new("WeldConstraint", { Part0 = head, Part1 = p }, p)
-		track(p)
-		return p
-	end
-
-	local dome = addPart({
-		Shape = Enum.PartType.Ball,
-		Size = Vector3.new(d, d, d),
-		Color = GOLD_D,
-		Material = Enum.Material.Metal,
-		Transparency = 0.12,
-		Name = "ElmoDeNabu",
-	}, CFrame.new(0, 0.05, 0))
-	new("PointLight", { Color = BLUE_L, Range = 8, Brightness = 1 }, dome)
-
-	addPart({
-		Size = Vector3.new(d * 0.09, d * 0.5, d * 0.55),
-		Color = GOLD,
-		Material = Enum.Material.Metal,
-		Name = "CristaElmo",
-	}, CFrame.new(0, r * 0.95, 0))
-
-	for _, sx in ipairs({ -1, 1 }) do
-		addPart({
-			Size = Vector3.new(d * 0.17, d * 0.06, d * 0.06),
-			Color = BLUE_L,
-			Material = Enum.Material.Neon,
-			Name = "OlhoElmo",
-		}, CFrame.new(sx * d * 0.16, d * 0.05, -r * 0.96))
-	end
-end
-
 local function restoreCharacter()
 	local char = player.Character
 	if not char then
@@ -994,7 +937,7 @@ local panel = new("CanvasGroup", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
 	Size = UDim2.fromScale(0.9, 0.92),
-	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundColor3 = Color3.fromRGB(12, 20, 55),
 	GroupTransparency = 1,
 	Visible = false,
 	ZIndex = 4,
@@ -1002,10 +945,6 @@ local panel = new("CanvasGroup", {
 new("UISizeConstraint", { MaxSize = Vector2.new(310, 290), MinSize = Vector2.new(210, 210) }, panel)
 corner(panel, 14)
 stroke(panel, GOLD, 2)
-new("UIGradient", {
-	Color = ColorSequence.new(Color3.fromRGB(16, 28, 78), Color3.fromRGB(7, 10, 28)),
-	Rotation = 90,
-}, panel)
 local panelScale = new("UIScale", { Scale = 1 }, panel)
 
 local header = new("Frame", {
@@ -1067,7 +1006,6 @@ new("UIGridLayout", {
 
 local POWERS = {
 	{ id = "Teleport", label = "TELETRANSPORTE" },
-	{ id = "Fly", label = "VOO" },
 	{ id = "Telepathy", label = "TELEPATIA" },
 	{ id = "Time", label = "MANIPULAÇÃO DO TEMPO" },
 	{ id = "Portal", label = "PORTAIS" },
@@ -1085,16 +1023,12 @@ for i, def in ipairs(POWERS) do
 		TextScaled = true,
 		TextWrapped = true,
 		AutoButtonColor = false,
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundColor3 = Color3.fromRGB(24, 42, 105),
 	}, grid)
 	corner(b, 10)
 	local st = stroke(b, GOLD, 1.5)
 	new("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, b)
 	new("UITextSizeConstraint", { MaxTextSize = 15, MinTextSize = 8 }, b)
-	new("UIGradient", {
-		Color = ColorSequence.new(Color3.fromRGB(34, 58, 140), Color3.fromRGB(12, 20, 56)),
-		Rotation = 90,
-	}, b)
 	local sc = new("UIScale", { Scale = 1 }, b)
 	local cdFrame = new("Frame", {
 		Size = UDim2.fromScale(1, 1),
@@ -1185,62 +1119,17 @@ end
 local cancelSelBtn = smallButton("CANCELAR", banner, 0, 8, 120)
 local aheadBtn = smallButton("À FRENTE", banner, 1, -8, 120)
 
--- controles de voo (altura)
-local flyPad = new("Frame", {
-	AnchorPoint = Vector2.new(1, 1),
-	Position = UDim2.new(1, -90, 1, -20),
-	Size = UDim2.fromOffset(150, 48),
-	BackgroundTransparency = 1,
-	Visible = false,
-	ZIndex = 6,
-}, gui)
-local flyInput = { up = false, down = false }
-local function padButton(text, xAnchor, key)
-	local b = new("TextButton", {
-		AnchorPoint = Vector2.new(xAnchor, 0.5),
-		Position = UDim2.new(xAnchor, 0, 0.5, 0),
-		Size = UDim2.fromOffset(70, 44),
-		BackgroundColor3 = NAVY,
-		BackgroundTransparency = 0.1,
-		Text = text,
-		TextColor3 = GOLD_L,
-		Font = Enum.Font.GothamBold,
-		TextSize = 13,
-		AutoButtonColor = false,
-		ZIndex = 6,
-	}, flyPad)
-	corner(b, 10)
-	stroke(b, GOLD, 2)
-	b.InputBegan:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
-			flyInput[key] = true
-		end
-	end)
-	b.InputEnded:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
-			flyInput[key] = false
-		end
-	end)
-	return b
-end
-padButton("DESCER", 0, "down")
-padButton("SUBIR", 1, "up")
-
 -- telepatia
 local teleFrame = new("CanvasGroup", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.45),
 	Size = UDim2.fromOffset(290, 176),
-	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundColor3 = Color3.fromRGB(12, 20, 55),
 	Visible = false,
 	ZIndex = 8,
 }, gui)
 corner(teleFrame, 14)
 stroke(teleFrame, GOLD, 2)
-new("UIGradient", {
-	Color = ColorSequence.new(Color3.fromRGB(16, 28, 78), Color3.fromRGB(7, 10, 28)),
-	Rotation = 90,
-}, teleFrame)
 local teleHeader = new("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1 }, teleFrame)
 new("TextLabel", {
 	Position = UDim2.fromOffset(12, 0),
@@ -1266,7 +1155,7 @@ local teleClose = new("TextButton", {
 corner(teleClose, 8)
 stroke(teleClose, GOLD, 1.5)
 local teleBox = new("TextBox", {
-	Position = UDim2.fromOffset(10, 38),
+	Position = UDim2.fromOffset(10, 70),
 	Size = UDim2.new(1, -20, 0, 62),
 	BackgroundColor3 = Color3.fromRGB(8, 14, 40),
 	TextColor3 = GOLD_L,
@@ -1284,18 +1173,22 @@ local teleBox = new("TextBox", {
 corner(teleBox, 8)
 stroke(teleBox, BLUE_L, 1.5)
 new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), PaddingRight = UDim.new(0, 6) }, teleBox)
-local recipBtn = new("TextButton", {
-	Position = UDim2.fromOffset(10, 108),
+local nameBox = new("TextBox", {
+	Position = UDim2.fromOffset(10, 38),
 	Size = UDim2.new(1, -20, 0, 26),
-	BackgroundColor3 = NAVY,
-	Text = "Destinatário: Todos",
-	TextColor3 = BLUE_L,
+	BackgroundColor3 = Color3.fromRGB(8, 14, 40),
+	TextColor3 = GOLD_L,
+	PlaceholderText = "Nome do personagem (ex.: Batman)",
+	PlaceholderColor3 = Color3.fromRGB(120, 140, 190),
+	Text = "",
 	Font = Enum.Font.GothamMedium,
-	TextSize = 13,
-	AutoButtonColor = false,
+	TextSize = 14,
+	ClearTextOnFocus = false,
+	TextXAlignment = Enum.TextXAlignment.Left,
 }, teleFrame)
-corner(recipBtn, 8)
-stroke(recipBtn, BLUE_L, 1.5)
+corner(nameBox, 8)
+stroke(nameBox, BLUE_L, 1.5)
+new("UIPadding", { PaddingLeft = UDim.new(0, 6) }, nameBox)
 local sendBtn = new("TextButton", {
 	Position = UDim2.fromOffset(10, 140),
 	Size = UDim2.new(1, -20, 0, 28),
@@ -1454,175 +1347,24 @@ local function onTeleportPressed()
 end
 
 --------------------------------------------------------------------------------
--- PODER 2: VOO
---------------------------------------------------------------------------------
-local flight = { conns = {}, objs = {}, saved = nil }
-
-local function stopFlight()
-	if not State.flying then
-		return
-	end
-	State.flying = false
-	for _, c in ipairs(flight.conns) do
-		pcall(function()
-			c:Disconnect()
-		end)
-	end
-	for _, o in ipairs(flight.objs) do
-		pcall(function()
-			o:Destroy()
-		end)
-	end
-	flight.conns, flight.objs = {}, {}
-	local _, hum = getCharacter()
-	if hum and flight.saved then
-		hum.PlatformStand = flight.saved.platformStand
-		hum.AutoRotate = flight.saved.autoRotate
-	end
-	flight.saved = nil
-	flyInput.up, flyInput.down = false, false
-	flyPad.Visible = false
-	setBtnActive("Fly", false)
-	setBtnText("Fly", buttons.Fly.base)
-end
-
-local function startFlight()
-	local char, hum, hrp = getCharacter()
-	if not char or State.flying then
-		return
-	end
-	State.flying = true
-	flight.saved = { platformStand = hum.PlatformStand, autoRotate = hum.AutoRotate }
-	hum.PlatformStand = true
-	hum.AutoRotate = false
-
-	local function mk(class, props, parent)
-		local o = new(class, props, parent)
-		table.insert(flight.objs, o)
-		return o
-	end
-
-	local att = mk("Attachment", {}, hrp)
-	local lv = mk("LinearVelocity", {
-		Attachment0 = att,
-		MaxForce = math.huge,
-		VelocityConstraintMode = Enum.VelocityConstraintMode.Vector,
-		VectorVelocity = Vector3.new(0, 0, 0),
-		RelativeTo = Enum.ActuatorRelativeTo.World,
-	}, hrp)
-	local ao = mk("AlignOrientation", {
-		Mode = Enum.OrientationAlignmentMode.OneAttachment,
-		Attachment0 = att,
-		RigidityEnabled = false,
-		MaxTorque = math.huge,
-		MaxAngularVelocity = math.huge,
-		Responsiveness = 25,
-		CFrame = hrp.CFrame.Rotation,
-	}, hrp)
-
-	-- aura dourada e azul
-	mk("Highlight", {
-		FillColor = GOLD,
-		OutlineColor = BLUE_L,
-		FillTransparency = 0.85,
-		OutlineTransparency = 0.2,
-		DepthMode = Enum.HighlightDepthMode.Occluded,
-		Adornee = char,
-	}, char)
-	local auraAtt = mk("Attachment", {}, hrp)
-	newEmitter(auraAtt, { rate = 35, color = ColorSequence.new(GOLD, GOLD_L), speedMin = 1, speedMax = 3, size = 0.8 })
-	newEmitter(auraAtt, { rate = 25, color = ColorSequence.new(BLUE_L, BLUE), speedMin = 1, speedMax = 3, size = 0.7 })
-	mk("PointLight", { Color = GOLD, Range = 16, Brightness = 1.5 }, hrp)
-
-	local current = Vector3.new(0, 0, 0)
-	local facing = flatDir(hrp.CFrame.LookVector)
-
-	table.insert(flight.conns, RunService.Heartbeat:Connect(function(dt)
-		local c, h, r = getCharacter()
-		if not c then
-			stopFlight()
-			return
-		end
-		local cam = getCamera()
-		local mv = h.MoveDirection
-		local up = (flyInput.up and 1 or 0) - (flyInput.down and 1 or 0)
-		local target = mv * CONFIG.FlySpeed + Vector3.new(0, up * CONFIG.VerticalSpeed, 0)
-		if CONFIG.FlyFollowsCameraPitch and mv.Magnitude > 0.1 then
-			local look = cam.CFrame.LookVector
-			local fwd = mv:Dot(flatDir(look))
-			if fwd > 0.3 then
-				target += Vector3.new(0, look.Y * CONFIG.FlySpeed * fwd, 0)
-			end
-		end
-		current = current:Lerp(target, 1 - math.exp(-8 * dt))
-		lv.VectorVelocity = current
-		if mv.Magnitude > 0.1 then
-			facing = flatDir(mv, facing)
-		end
-		local tilt = math.rad(28) * math.min(mv.Magnitude, 1)
-		ao.CFrame = CFrame.lookAt(Vector3.new(0, 0, 0), facing) * CFrame.Angles(-tilt, 0, 0)
-	end))
-
-	table.insert(flight.conns, UserInputService.InputBegan:Connect(function(input, gp)
-		if gp then
-			return
-		end
-		if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.E then
-			flyInput.up = true
-		elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.LeftControl then
-			flyInput.down = true
-		end
-	end))
-	table.insert(flight.conns, UserInputService.InputEnded:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.E then
-			flyInput.up = false
-		elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.LeftControl then
-			flyInput.down = false
-		end
-	end))
-
-	flyPad.Visible = true
-	setBtnActive("Fly", true)
-	setBtnText("Fly", "VOO: ATIVO")
-	Effects.Burst(hrp.Position, 40, 30, 18)
-end
-
-local function onFlyPressed()
-	if State.flying then
-		stopFlight()
-		toast("Voo desativado.")
-	else
-		startFlight()
-		toast("Voo ativo. Use o direcional + SUBIR/DESCER.")
-	end
-end
-
---------------------------------------------------------------------------------
 -- PODER 3: TELEPATIA (mensagem de RP, enviada no chat)
 --------------------------------------------------------------------------------
-local recipIndex = 0
-
-local function otherPlayers()
-	local list = {}
+local function findPlayerByName(name)
+	local q = string.lower(name)
+	if q == "" then
+		return nil
+	end
 	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= player then
-			table.insert(list, p)
+		if p ~= player and (string.lower(p.DisplayName) == q or string.lower(p.Name) == q) then
+			return p
 		end
 	end
-	return list
-end
-
-local function currentRecipient()
-	local list = otherPlayers()
-	if recipIndex > #list then
-		recipIndex = 0
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and (string.find(string.lower(p.DisplayName), q, 1, true) or string.find(string.lower(p.Name), q, 1, true)) then
+			return p
+		end
 	end
-	return list[recipIndex]
-end
-
-local function refreshRecipLabel()
-	local r = currentRecipient()
-	recipBtn.Text = "Destinatário: " .. (r and r.DisplayName or "Todos")
+	return nil
 end
 
 local function sendChat(text)
@@ -1652,21 +1394,16 @@ end
 
 local function setTelepathyOpen(open)
 	if open then
-		refreshRecipLabel()
 		teleFrame.GroupTransparency = 1
 		teleFrame.Visible = true
 		TweenService:Create(teleFrame, TweenInfo.new(0.3), { GroupTransparency = 0 }):Play()
 	else
 		teleBox:ReleaseFocus()
+		nameBox:ReleaseFocus()
 		teleFrame.Visible = false
 	end
 end
 
-recipBtn.Activated:Connect(function()
-	local n = #otherPlayers()
-	recipIndex = (recipIndex + 1) % (n + 1)
-	refreshRecipLabel()
-end)
 teleClose.Activated:Connect(function()
 	setTelepathyOpen(false)
 end)
@@ -1692,11 +1429,16 @@ sendBtn.Activated:Connect(function()
 	if not char then
 		return
 	end
-	local recipient = currentRecipient()
-	local prefix = recipient and ("[Telepatia ➜ " .. recipient.DisplayName .. "] ") or "[Telepatia] "
+	local name = nameBox.Text:match("^%s*(.-)%s*$")
+	local nlen = utf8.len(name)
+	if nlen and nlen > 30 then
+		name = name:sub(1, utf8.offset(name, 31) - 1)
+	end
+	local recipient = findPlayerByName(name)
+	local shown = (name ~= "" and (name .. ", ") or "") .. text
 	startCd("Telepathy")
-	sendChat(prefix .. text)
-	Effects.Telepathy(char, recipient and recipient.Character or nil, text)
+	sendChat("🧠 Telepatia: " .. shown)
+	Effects.Telepathy(char, recipient and recipient.Character or nil, shown)
 	teleBox.Text = ""
 	teleBox:ReleaseFocus()
 	toast("Mensagem mental enviada.")
@@ -2121,7 +1863,6 @@ end
 --------------------------------------------------------------------------------
 local handlers = {
 	Teleport = onTeleportPressed,
-	Fly = onFlyPressed,
 	Telepathy = onTelepathyPressed,
 	Time = onTimePressed,
 	Portal = onPortalPressed,
@@ -2184,7 +1925,6 @@ local function deactivate()
 		fire("HelmOff", char.HumanoidRootPart.Position)
 	end
 
-	stopFlight()
 	stopTime(true)
 	closePortals(true)
 	endSelect()
@@ -2217,7 +1957,6 @@ local function activate()
 		deactivate()
 	end))
 
-	buildHelmet(char)
 	Effects.HelmPulse(char, true)
 	fire("HelmOn", hrp.Position)
 	playSound(CONFIG.Sounds.Activate)
